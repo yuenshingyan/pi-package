@@ -1,0 +1,10 @@
+{
+  "name": "my-pi-package",
+  "version": "1.0.0",
+  "description": "My shared pi extensions and skills",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"]
+  }
+}
