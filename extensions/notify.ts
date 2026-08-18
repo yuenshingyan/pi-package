@@ -10,7 +10,12 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { writeFileSync, openSync, closeSync } from "node:fs";
+import { writeFileSync, openSync, closeSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import { execFile } from "node:child_process";
+
+const piNotifierBin = join(homedir(), ".pi", "agent", "extensions", "PiNotifier.app", "Contents", "MacOS", "terminal-notifier");
 
 function writeTTY(data: string): void {
 	try {
@@ -55,9 +60,12 @@ function bell(): void {
 }
 
 function notifyMacOS(title: string, body: string): void {
-	const { execFile } = require("node:child_process");
-	const escaped = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-	execFile("osascript", ["-e", `display notification "${escaped(body)}" with title "${escaped(title)}" sound name "Glass"`]);
+	if (existsSync(piNotifierBin)) {
+		execFile(piNotifierBin, ["-title", title, "-message", body, "-sound", "Glass"]);
+	} else {
+		const escaped = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+		execFile("osascript", ["-e", `display notification "${escaped(body)}" with title "${escaped(title)}" sound name "Glass"`]);
+	}
 }
 
 function notify(title: string, body: string): void {
