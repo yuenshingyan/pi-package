@@ -10,11 +10,32 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { writeFileSync, openSync, closeSync } from "node:fs";
-import { dirname } from "node:path";
+import { writeFileSync, openSync, closeSync, realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __extensionDir = dirname(fileURLToPath(import.meta.url));
+function resolveExtensionDir(): string {
+	// Try import.meta.url first (ESM)
+	try {
+		const url = import.meta.url;
+		if (url && url.startsWith("file:")) {
+			return dirname(fileURLToPath(url));
+		}
+	} catch {}
+	// Try __dirname (CommonJS / jiti)
+	if (typeof __dirname !== "undefined") {
+		return __dirname;
+	}
+	// Try __filename
+	if (typeof __filename !== "undefined") {
+		return dirname(__filename);
+	}
+	// Last resort: resolve from home directory
+	const homedir = require("node:os").homedir();
+	return join(homedir, ".pi", "agent", "extensions");
+}
+
+const __extensionDir = resolveExtensionDir();
 
 function writeTTY(data: string): void {
 	try {
@@ -60,15 +81,28 @@ function bell(): void {
 
 function notifyMacOS(title: string, body: string): void {
 	const { execFile } = require("node:child_process");
+	const { existsSync } = require("node:fs");
 	const path = require("node:path");
 	const piNotifier = path.join(__extensionDir, "PiNotifier.app", "Contents", "MacOS", "terminal-notifier");
+	if (!existsSync(piNotifier)) {
+		// PiNotifier.app not found at resolved path, try which terminal-notifier
+		execFile("terminal-notifier", [
+			"-title", title,
+			"-message", body,
+			"-sound", "Glass",
+		], (err2: Error | null) => {
+			if (err2) {
+				execFile("osascript", ["-e", `display notification "${body}" with title "${title}" sound name "Glass"`]);
+			}
+		});
+		return;
+	}
 	execFile(piNotifier, [
 		"-title", title,
 		"-message", body,
 		"-sound", "Glass",
 	], (err: Error | null) => {
 		if (err) {
-			// Fallback to osascript if PiNotifier.app is not available
 			execFile("osascript", ["-e", `display notification "${body}" with title "${title}" sound name "Glass"`]);
 		}
 	});
