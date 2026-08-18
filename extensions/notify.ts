@@ -11,6 +11,10 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFileSync, openSync, closeSync } from "node:fs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __extensionDir = dirname(fileURLToPath(import.meta.url));
 
 function writeTTY(data: string): void {
 	try {
@@ -57,7 +61,7 @@ function bell(): void {
 function notifyMacOS(title: string, body: string): void {
 	const { execFile } = require("node:child_process");
 	const path = require("node:path");
-	const piNotifier = path.join(__dirname, "PiNotifier.app", "Contents", "MacOS", "terminal-notifier");
+	const piNotifier = path.join(__extensionDir, "PiNotifier.app", "Contents", "MacOS", "terminal-notifier");
 	execFile(piNotifier, [
 		"-title", title,
 		"-message", body,
