@@ -1,14 +1,25 @@
 /**
  * Pi Notify Extension
  *
- * Plays a sound and shows footer status when Pi agent is done.
- * - macOS: plays system sound via afplay
- * - Other: terminal bell via /dev/tty
+ * Shows a macOS notification banner with Pi icon and plays a sound when Pi is done.
+ * Visible even when the terminal is not in focus.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-function bell(): void {
+function notifyDarwin(): void {
+	const { spawn } = require("child_process");
+	const { join } = require("path");
+	const { homedir } = require("os");
+	const bin = join(homedir(), ".pi", "agent", "extensions", "PiAgent.app", "Contents", "MacOS", "terminal-notifier");
+	const child = spawn(bin, ["-title", "Pi", "-message", "Ready for input", "-sound", "Glass"], {
+		detached: true,
+		stdio: "ignore",
+	});
+	child.unref();
+}
+
+function notifyOther(): void {
 	try {
 		const { openSync, writeFileSync, closeSync } = require("fs");
 		const fd = openSync("/dev/tty", "w");
@@ -19,26 +30,12 @@ function bell(): void {
 	}
 }
 
-function playSound(): void {
-	const { spawn } = require("child_process");
-	if (process.platform === "darwin") {
-		const child = spawn("afplay", ["/System/Library/Sounds/Glass.aiff"], {
-			detached: true,
-			stdio: "ignore",
-		});
-		child.unref();
-	} else {
-		bell();
-	}
-}
-
 export default function (pi: ExtensionAPI) {
-	pi.on("agent_settled", async (_event, ctx) => {
-		playSound();
-		ctx.ui.setStatus("notify", "π Ready for input");
-	});
-
-	pi.on("agent_start", async (_event, ctx) => {
-		ctx.ui.setStatus("notify", "");
+	pi.on("agent_settled", async () => {
+		if (process.platform === "darwin") {
+			notifyDarwin();
+		} else {
+			notifyOther();
+		}
 	});
 }
